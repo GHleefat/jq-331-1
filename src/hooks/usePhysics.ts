@@ -1,5 +1,5 @@
-import { useRef, useCallback } from 'react';
-import { Vector3 } from 'three';
+import { useRef, useCallback } from "react";
+import { Vector3 } from "three";
 import {
   GRAVITY_STRENGTH,
   FRICTION,
@@ -9,8 +9,8 @@ import {
   WALL_THICKNESS,
   MAZE_SIZE,
   CELL_SIZE,
-} from '../utils/constants';
-import type { WallData, PitData, PhysicsResult } from '../utils/types';
+} from "../utils/constants";
+import type { WallData, PitData, PhysicsResult } from "../utils/types";
 
 function clampSpeed(v: Vector3, max: number): void {
   const speed = v.length();
@@ -23,7 +23,7 @@ function resolveWallCollision(
   pos: Vector3,
   vel: Vector3,
   wallPos: [number, number, number],
-  wallSize: [number, number, number]
+  wallSize: [number, number, number],
 ): boolean {
   const halfW = wallSize[0] / 2 + BALL_RADIUS;
   const halfH = wallSize[1] / 2 + BALL_RADIUS;
@@ -33,11 +33,7 @@ function resolveWallCollision(
   const dy = pos.y - wallPos[1];
   const dz = pos.z - wallPos[2];
 
-  if (
-    Math.abs(dx) < halfW &&
-    Math.abs(dy) < halfH &&
-    Math.abs(dz) < halfD
-  ) {
+  if (Math.abs(dx) < halfW && Math.abs(dy) < halfH && Math.abs(dz) < halfD) {
     const overlapX = halfW - Math.abs(dx);
     const overlapY = halfH - Math.abs(dy);
     const overlapZ = halfD - Math.abs(dz);
@@ -63,7 +59,7 @@ function resolveWallCollision(
 
 function checkPitCollision(
   pos: Vector3,
-  pitPos: [number, number, number]
+  pitPos: [number, number, number],
 ): boolean {
   const pitRadius = CELL_SIZE * 0.4;
   const dx = pos.x - pitPos[0];
@@ -74,7 +70,7 @@ function checkPitCollision(
 
 function checkGoalCollision(
   pos: Vector3,
-  goalPos: [number, number, number]
+  goalPos: [number, number, number],
 ): boolean {
   const goalRadius = CELL_SIZE * 0.45;
   const dx = pos.x - goalPos[0];
@@ -87,10 +83,10 @@ export function usePhysics(
   walls: WallData[],
   pits: PitData[],
   goal: [number, number, number],
-  startPos: [number, number, number]
+  startPos: [number, number, number],
 ) {
   const positionRef = useRef(
-    new Vector3(startPos[0], startPos[1], startPos[2])
+    new Vector3(startPos[0], startPos[1], startPos[2]),
   );
   const velocityRef = useRef(new Vector3(0, 0, 0));
 
@@ -174,13 +170,17 @@ export function usePhysics(
         newVelocity: vel.clone(),
       };
     },
-    [walls, pits, goal, startPos]
+    [walls, pits, goal, startPos],
   );
 
-  const reset = useCallback(() => {
-    positionRef.current.set(startPos[0], startPos[1], startPos[2]);
-    velocityRef.current.set(0, 0, 0);
-  }, [startPos]);
+  const reset = useCallback(
+    (newStart?: [number, number, number]) => {
+      const pos = newStart || startPos;
+      positionRef.current.set(pos[0], pos[1], pos[2]);
+      velocityRef.current.set(0, 0, 0);
+    },
+    [startPos],
+  );
 
   return {
     position: positionRef,

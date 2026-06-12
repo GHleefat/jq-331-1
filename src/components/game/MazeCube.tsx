@@ -1,19 +1,19 @@
-import { useRef, useCallback, useEffect, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
-import * as THREE from 'three';
-import { OrbitControls } from '@react-three/drei';
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { EffectComposer, Bloom, FXAA } from '@react-three/postprocessing';
-import { Walls } from './Walls';
-import { Pits } from './Pits';
-import { Goal } from './Goal';
-import { Ball } from './Ball';
-import { CubeShell } from './CubeShell';
-import { usePhysics } from '../../hooks/usePhysics';
-import { useDragRotation } from '../../hooks/useDragRotation';
-import { generateMaze } from '../../utils/mazeGenerator';
-import { PHYSICS_TIMESTEP, INITIAL_ROTATION } from '../../utils/constants';
-import type { GameStateData } from '../../hooks/useGameState';
+import { useRef, useCallback, useEffect, useState } from "react";
+import { useFrame } from "@react-three/fiber";
+import * as THREE from "three";
+import { OrbitControls } from "@react-three/drei";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import { EffectComposer, Bloom, FXAA } from "@react-three/postprocessing";
+import { Walls } from "./Walls";
+import { Pits } from "./Pits";
+import { Goal } from "./Goal";
+import { Ball } from "./Ball";
+import { CubeShell } from "./CubeShell";
+import { usePhysics } from "../../hooks/usePhysics";
+import { useDragRotation } from "../../hooks/useDragRotation";
+import { generateMaze } from "../../utils/mazeGenerator";
+import { PHYSICS_TIMESTEP, INITIAL_ROTATION } from "../../utils/constants";
+import type { GameStateData } from "../../hooks/useGameState";
 
 interface MazeCubeProps {
   gameState: GameStateData;
@@ -38,24 +38,34 @@ export function MazeCube({
   const groupRef = useRef<THREE.Group>(null);
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const [mazeKey, setMazeKey] = useState(0);
+  const physicsArgsRef = useRef({
+    walls: mazeData.current.walls,
+    pits: mazeData.current.pits,
+    goal: mazeData.current.goal,
+    start: mazeData.current.start,
+  });
 
-  const { position: ballPosRef, velocity: ballVelRef, update: updatePhysics, reset: resetPhysics } =
-    usePhysics(
-      mazeData.current.walls,
-      mazeData.current.pits,
-      mazeData.current.goal,
-      mazeData.current.start
-    );
+  const {
+    position: ballPosRef,
+    velocity: ballVelRef,
+    update: updatePhysics,
+    reset: resetPhysics,
+  } = usePhysics(
+    physicsArgsRef.current.walls,
+    physicsArgsRef.current.pits,
+    physicsArgsRef.current.goal,
+    physicsArgsRef.current.start,
+  );
 
   const handleRotationChange = useCallback(
     (x: number, y: number) => {
       onRotationUpdate(x, y);
       onGravityUpdate(x, y);
     },
-    [onRotationUpdate, onGravityUpdate]
+    [onRotationUpdate, onGravityUpdate],
   );
 
-  const { update: updateRotation } = useDragRotation({
+  const { update: updateRotation, reset: resetRotation } = useDragRotation({
     onRotationChange: handleRotationChange,
     initialRotation: INITIAL_ROTATION,
   });
@@ -63,12 +73,20 @@ export function MazeCube({
   const accumulatorRef = useRef(0);
 
   useEffect(() => {
+    mazeData.current = generateMaze();
+    physicsArgsRef.current = {
+      walls: mazeData.current.walls,
+      pits: mazeData.current.pits,
+      goal: mazeData.current.goal,
+      start: mazeData.current.start,
+    };
     setMazeKey((prev) => prev + 1);
-    resetPhysics();
-  }, [resetTrigger, resetPhysics]);
+    resetRotation();
+    resetPhysics(mazeData.current.start);
+  }, [resetTrigger, resetRotation, resetPhysics]);
 
   useFrame((_, delta) => {
-    if (gameState.status === 'won') {
+    if (gameState.status === "won") {
       if (groupRef.current) {
         groupRef.current.rotation.x = gameState.cubeRotation.x;
         groupRef.current.rotation.y = gameState.cubeRotation.y;
@@ -83,12 +101,13 @@ export function MazeCube({
       groupRef.current.rotation.y = actualRot.y;
     }
 
-    if (gameState.status === 'playing') {
+    if (gameState.status === "playing") {
       accumulatorRef.current += delta;
 
       while (accumulatorRef.current >= PHYSICS_TIMESTEP) {
         const gravity = new THREE.Vector3(0, -1, 0);
-        gravity.applyQuaternion(groupRef.current!.quaternion);
+        const invQuat = groupRef.current!.quaternion.clone().invert();
+        gravity.applyQuaternion(invQuat);
 
         const result = updatePhysics(gravity, PHYSICS_TIMESTEP);
 
@@ -136,18 +155,18 @@ export function MazeCube({
       <pointLight position={[5, -5, 5]} intensity={0.3} color="#ff4757" />
 
       <group ref={groupRef}>
-        <CubeShell won={gameState.status === 'won'} />
+        <CubeShell won={gameState.status === "won"} />
         <Walls key={`walls-${mazeKey}`} walls={mazeData.current.walls} />
         <Pits key={`pits-${mazeKey}`} pits={mazeData.current.pits} />
         <Goal
           key={`goal-${mazeKey}`}
           position={mazeData.current.goal}
-          won={gameState.status === 'won'}
+          won={gameState.status === "won"}
         />
         <Ball
           positionRef={ballPosRef}
           velocityRef={ballVelRef}
-          won={gameState.status === 'won'}
+          won={gameState.status === "won"}
         />
       </group>
 
@@ -171,7 +190,11 @@ export function MazeCube({
           ]}
         >
           <sphereGeometry args={[Math.random() * 0.05 + 0.02, 8, 8]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={Math.random() * 0.5 + 0.2} />
+          <meshBasicMaterial
+            color="#ffffff"
+            transparent
+            opacity={Math.random() * 0.5 + 0.2}
+          />
         </mesh>
       ))}
     </>

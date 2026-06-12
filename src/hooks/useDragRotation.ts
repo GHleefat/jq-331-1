@@ -1,5 +1,5 @@
-import { useRef, useCallback, useEffect } from 'react';
-import { ROTATION_SPEED, ROTATION_EASING } from '../utils/constants';
+import { useRef, useCallback, useEffect } from "react";
+import { ROTATION_SPEED, ROTATION_EASING } from "../utils/constants";
 
 interface UseDragRotationOptions {
   onRotationChange: (x: number, y: number) => void;
@@ -29,8 +29,8 @@ export function useDragRotation({
     const dy = e.clientY - lastMouseRef.current.y;
 
     targetRotationRef.current = {
-      x: targetRotationRef.current.x + dy * ROTATION_SPEED,
-      y: targetRotationRef.current.y + dx * ROTATION_SPEED,
+      x: targetRotationRef.current.x - dy * ROTATION_SPEED,
+      y: targetRotationRef.current.y - dx * ROTATION_SPEED,
     };
 
     lastMouseRef.current = { x: e.clientX, y: e.clientY };
@@ -48,19 +48,16 @@ export function useDragRotation({
       x: lerp(
         actualRotationRef.current.x,
         targetRotationRef.current.x,
-        ROTATION_EASING
+        ROTATION_EASING,
       ),
       y: lerp(
         actualRotationRef.current.y,
         targetRotationRef.current.y,
-        ROTATION_EASING
+        ROTATION_EASING,
       ),
     };
 
-    onRotationChange(
-      actualRotationRef.current.x,
-      actualRotationRef.current.y
-    );
+    onRotationChange(actualRotationRef.current.x, actualRotationRef.current.y);
 
     return actualRotationRef.current;
   }, [onRotationChange]);
@@ -72,19 +69,19 @@ export function useDragRotation({
   }, [initialRotation, onRotationChange]);
 
   useEffect(() => {
-    const canvas = document.querySelector('canvas');
+    const canvas = document.querySelector("canvas");
     if (!canvas) return;
 
-    canvas.addEventListener('pointerdown', handlePointerDown);
-    canvas.addEventListener('pointermove', handlePointerMove);
-    canvas.addEventListener('pointerup', handlePointerUp);
-    canvas.addEventListener('pointerleave', handlePointerUp);
+    canvas.addEventListener("pointerdown", handlePointerDown);
+    canvas.addEventListener("pointermove", handlePointerMove);
+    canvas.addEventListener("pointerup", handlePointerUp);
+    canvas.addEventListener("pointerleave", handlePointerUp);
 
     return () => {
-      canvas.removeEventListener('pointerdown', handlePointerDown);
-      canvas.removeEventListener('pointermove', handlePointerMove);
-      canvas.removeEventListener('pointerup', handlePointerUp);
-      canvas.removeEventListener('pointerleave', handlePointerUp);
+      canvas.removeEventListener("pointerdown", handlePointerDown);
+      canvas.removeEventListener("pointermove", handlePointerMove);
+      canvas.removeEventListener("pointerup", handlePointerUp);
+      canvas.removeEventListener("pointerleave", handlePointerUp);
     };
   }, [handlePointerDown, handlePointerMove, handlePointerUp]);
 

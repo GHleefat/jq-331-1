@@ -30,73 +30,127 @@ function createOuterWalls(): WallData[] {
   return walls;
 }
 
-function createInnerWalls(): WallData[] {
-  const walls: WallData[] = [];
-  const t = WALL_THICKNESS;
-  const s = CELL_SIZE;
+type CellGrid = boolean[][][];
 
-  const wallPatterns: [number, number, number, 'x' | 'y' | 'z'][] = [
-    [1, 1, 1, 'x'],
-    [1, 1, 2, 'y'],
-    [2, 1, 1, 'z'],
-    [3, 2, 1, 'x'],
-    [1, 2, 3, 'y'],
-    [2, 3, 2, 'z'],
-    [3, 1, 3, 'x'],
-    [1, 3, 1, 'y'],
-    [3, 3, 2, 'z'],
-    [2, 1, 4, 'x'],
-    [4, 2, 2, 'y'],
-    [2, 4, 3, 'z'],
-    [1, 1, 4, 'x'],
-    [4, 3, 1, 'y'],
-    [1, 4, 4, 'z'],
-    [3, 1, 2, 'x'],
-    [2, 2, 4, 'y'],
-    [4, 1, 4, 'z'],
-  ];
-
-  wallPatterns.forEach(([gx, gy, gz, axis]) => {
-    const [wx, wy, wz] = gridToWorld(gx, gy, gz);
-    let size: [number, number, number];
-    if (axis === 'x') {
-      size = [s + t * 2, t, t];
-    } else if (axis === 'y') {
-      size = [t, s + t * 2, t];
-    } else {
-      size = [t, t, s + t * 2];
+function createEmptyGrid(): CellGrid {
+  const grid: CellGrid = [];
+  for (let x = 0; x < MAZE_SIZE; x++) {
+    grid[x] = [];
+    for (let y = 0; y < MAZE_SIZE; y++) {
+      grid[x][y] = [];
+      for (let z = 0; z < MAZE_SIZE; z++) {
+        grid[x][y][z] = false;
+      }
     }
-    walls.push({ position: [wx, wy, wz], size });
-  });
+  }
+  return grid;
+}
+
+function createInnerWallsFromGrid(wallGrid: CellGrid): WallData[] {
+  const walls: WallData[] = [];
+  const wallSize = CELL_SIZE * 0.92;
+
+  for (let x = 0; x < MAZE_SIZE; x++) {
+    for (let y = 0; y < MAZE_SIZE; y++) {
+      for (let z = 0; z < MAZE_SIZE; z++) {
+        if (wallGrid[x][y][z]) {
+          const [wx, wy, wz] = gridToWorld(x, y, z);
+          walls.push({
+            position: [wx, wy, wz],
+            size: [wallSize, wallSize, wallSize],
+          });
+        }
+      }
+    }
+  }
 
   return walls;
 }
 
-function createPits(): PitData[] {
-  const pitPositions: [number, number, number][] = [
+function createPitsFromGrid(pitGrid: CellGrid): PitData[] {
+  const pits: PitData[] = [];
+
+  for (let x = 0; x < MAZE_SIZE; x++) {
+    for (let y = 0; y < MAZE_SIZE; y++) {
+      for (let z = 0; z < MAZE_SIZE; z++) {
+        if (pitGrid[x][y][z]) {
+          pits.push({
+            position: gridToWorld(x, y, z),
+          });
+        }
+      }
+    }
+  }
+
+  return pits;
+}
+
+function generateMazeLayout(): {
+  wallGrid: CellGrid;
+  pitGrid: CellGrid;
+  start: [number, number, number];
+  goal: [number, number, number];
+} {
+  const wallGrid = createEmptyGrid();
+  const pitGrid = createEmptyGrid();
+  const start: [number, number, number] = [0, 0, 0];
+  const goal: [number, number, number] = [MAZE_SIZE - 1, MAZE_SIZE - 1, MAZE_SIZE - 1];
+
+  const wallPatterns: [number, number, number][] = [
+    [2, 0, 0], [2, 0, 1], [2, 0, 2],
+    [0, 2, 0], [1, 2, 0], [2, 2, 0],
+    [0, 0, 2], [0, 1, 2], [0, 2, 2], [0, 3, 2],
+    [4, 2, 0], [4, 2, 1], [4, 2, 2], [4, 2, 3],
+    [2, 4, 0], [2, 4, 1], [2, 4, 2], [3, 4, 2],
+    [2, 2, 4], [1, 2, 4], [2, 1, 4], [3, 2, 4],
+    [4, 0, 2], [4, 1, 2],
+    [0, 4, 2], [1, 4, 2],
+    [2, 0, 4], [2, 1, 4],
+    [1, 1, 1], [3, 1, 1], [1, 3, 1], [1, 1, 3],
+    [3, 3, 1], [3, 1, 3], [1, 3, 3], [3, 3, 3],
     [2, 2, 2],
-    [1, 3, 2],
-    [3, 1, 3],
-    [2, 4, 1],
-    [4, 2, 3],
-    [1, 1, 3],
-    [3, 3, 4],
   ];
 
-  return pitPositions.map(([gx, gy, gz]) => ({
-    position: gridToWorld(gx, gy, gz),
-  }));
+  wallPatterns.forEach(([x, y, z]) => {
+    const isStart = x === start[0] && y === start[1] && z === start[2];
+    const isGoal = x === goal[0] && y === goal[1] && z === goal[2];
+    if (!isStart && !isGoal) {
+      wallGrid[x][y][z] = true;
+    }
+  });
+
+  const pitPatterns: [number, number, number][] = [
+    [1, 0, 1], [3, 0, 3],
+    [0, 1, 1], [4, 1, 4],
+    [1, 1, 0], [3, 3, 0], [0, 3, 3], [4, 3, 1],
+    [1, 4, 4], [3, 4, 0],
+    [0, 0, 4], [4, 4, 0],
+    [2, 3, 4], [4, 2, 4], [4, 4, 2],
+  ];
+
+  pitPatterns.forEach(([x, y, z]) => {
+    const isStart = x === start[0] && y === start[1] && z === start[2];
+    const isGoal = x === goal[0] && y === goal[1] && z === goal[2];
+    const isWall = wallGrid[x][y][z];
+    if (!isStart && !isGoal && !isWall) {
+      pitGrid[x][y][z] = true;
+    }
+  });
+
+  return { wallGrid, pitGrid, start, goal };
 }
 
 export function generateMaze(): MazeData {
+  const { wallGrid, pitGrid, start, goal } = generateMazeLayout();
+
   const outerWalls = createOuterWalls();
-  const innerWalls = createInnerWalls();
-  const pits = createPits();
+  const innerWalls = createInnerWallsFromGrid(wallGrid);
+  const pits = createPitsFromGrid(pitGrid);
 
   return {
     walls: [...outerWalls, ...innerWalls],
     pits,
-    goal: gridToWorld(4, 4, 4),
-    start: gridToWorld(0, 0, 0),
+    goal: gridToWorld(goal[0], goal[1], goal[2]),
+    start: gridToWorld(start[0], start[1], start[2]),
   };
 }
