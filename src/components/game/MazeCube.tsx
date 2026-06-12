@@ -65,12 +65,17 @@ export function MazeCube({
     [onRotationUpdate, onGravityUpdate],
   );
 
-  const { update: updateRotation, reset: resetRotation } = useDragRotation({
+  const {
+    update: updateRotation,
+    reset: resetRotation,
+    currentQuaternion,
+  } = useDragRotation({
     onRotationChange: handleRotationChange,
     initialRotation: INITIAL_ROTATION,
   });
 
   const accumulatorRef = useRef(0);
+  const gravityLocalRef = useRef(new THREE.Vector3(0, -1, 0));
 
   useEffect(() => {
     mazeData.current = generateMaze();
@@ -87,29 +92,24 @@ export function MazeCube({
 
   useFrame((_, delta) => {
     if (gameState.status === "won") {
-      if (groupRef.current) {
-        groupRef.current.rotation.x = gameState.cubeRotation.x;
-        groupRef.current.rotation.y = gameState.cubeRotation.y;
-      }
       return;
     }
 
-    const actualRot = updateRotation();
+    const rotResult = updateRotation();
 
     if (groupRef.current) {
-      groupRef.current.rotation.x = actualRot.x;
-      groupRef.current.rotation.y = actualRot.y;
+      groupRef.current.quaternion.copy(rotResult.quaternion);
     }
 
     if (gameState.status === "playing") {
       accumulatorRef.current += delta;
 
-      while (accumulatorRef.current >= PHYSICS_TIMESTEP) {
-        const gravity = new THREE.Vector3(0, -1, 0);
-        const invQuat = groupRef.current!.quaternion.clone().invert();
-        gravity.applyQuaternion(invQuat);
+      const worldGravity = new THREE.Vector3(0, -1, 0);
+      const invQuat = currentQuaternion.current.clone().invert();
+      gravityLocalRef.current.copy(worldGravity).applyQuaternion(invQuat);
 
-        const result = updatePhysics(gravity, PHYSICS_TIMESTEP);
+      while (accumulatorRef.current >= PHYSICS_TIMESTEP) {
+        const result = updatePhysics(gravityLocalRef.current, PHYSICS_TIMESTEP);
 
         if (result.hitWall) {
           onCollision();

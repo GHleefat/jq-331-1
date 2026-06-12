@@ -1,12 +1,11 @@
-import {
-  MAZE_SIZE,
-  CELL_SIZE,
-  CUBE_HALF,
-  WALL_THICKNESS,
-} from './constants';
-import type { MazeData, WallData, PitData } from './types';
+import { MAZE_SIZE, CELL_SIZE, CUBE_HALF, WALL_THICKNESS } from "./constants";
+import type { MazeData, WallData, PitData } from "./types";
 
-function gridToWorld(gx: number, gy: number, gz: number): [number, number, number] {
+function gridToWorld(
+  gx: number,
+  gy: number,
+  gz: number,
+): [number, number, number] {
   return [
     (gx - MAZE_SIZE / 2 + 0.5) * CELL_SIZE,
     (gy - MAZE_SIZE / 2 + 0.5) * CELL_SIZE,
@@ -48,7 +47,7 @@ function createEmptyGrid(): CellGrid {
 
 function createInnerWallsFromGrid(wallGrid: CellGrid): WallData[] {
   const walls: WallData[] = [];
-  const wallSize = CELL_SIZE * 0.92;
+  const wallSize = CELL_SIZE * 0.9;
 
   for (let x = 0; x < MAZE_SIZE; x++) {
     for (let y = 0; y < MAZE_SIZE; y++) {
@@ -94,21 +93,32 @@ function generateMazeLayout(): {
   const wallGrid = createEmptyGrid();
   const pitGrid = createEmptyGrid();
   const start: [number, number, number] = [0, 0, 0];
-  const goal: [number, number, number] = [MAZE_SIZE - 1, MAZE_SIZE - 1, MAZE_SIZE - 1];
+  const goal: [number, number, number] = [4, 4, 4];
 
   const wallPatterns: [number, number, number][] = [
-    [2, 0, 0], [2, 0, 1], [2, 0, 2],
-    [0, 2, 0], [1, 2, 0], [2, 2, 0],
-    [0, 0, 2], [0, 1, 2], [0, 2, 2], [0, 3, 2],
-    [4, 2, 0], [4, 2, 1], [4, 2, 2], [4, 2, 3],
-    [2, 4, 0], [2, 4, 1], [2, 4, 2], [3, 4, 2],
-    [2, 2, 4], [1, 2, 4], [2, 1, 4], [3, 2, 4],
-    [4, 0, 2], [4, 1, 2],
-    [0, 4, 2], [1, 4, 2],
-    [2, 0, 4], [2, 1, 4],
-    [1, 1, 1], [3, 1, 1], [1, 3, 1], [1, 1, 3],
-    [3, 3, 1], [3, 1, 3], [1, 3, 3], [3, 3, 3],
+    [2, 0, 0],
+    [2, 1, 0],
+    [2, 2, 0],
+    [0, 2, 2],
+    [1, 2, 2],
     [2, 2, 2],
+    [3, 2, 2],
+    [4, 2, 0],
+    [4, 2, 1],
+    [2, 4, 2],
+    [3, 4, 2],
+    [4, 4, 2],
+    [0, 0, 3],
+    [0, 1, 3],
+    [0, 2, 3],
+    [2, 0, 4],
+    [2, 1, 4],
+    [2, 2, 4],
+    [1, 3, 0],
+    [1, 3, 1],
+    [3, 1, 3],
+    [3, 1, 4],
+    [3, 3, 4],
   ];
 
   wallPatterns.forEach(([x, y, z]) => {
@@ -120,12 +130,16 @@ function generateMazeLayout(): {
   });
 
   const pitPatterns: [number, number, number][] = [
-    [1, 0, 1], [3, 0, 3],
-    [0, 1, 1], [4, 1, 4],
-    [1, 1, 0], [3, 3, 0], [0, 3, 3], [4, 3, 1],
-    [1, 4, 4], [3, 4, 0],
-    [0, 0, 4], [4, 4, 0],
-    [2, 3, 4], [4, 2, 4], [4, 4, 2],
+    [1, 0, 2],
+    [3, 0, 1],
+    [0, 1, 1],
+    [4, 1, 3],
+    [1, 1, 4],
+    [3, 2, 1],
+    [1, 4, 3],
+    [2, 3, 0],
+    [4, 3, 4],
+    [0, 4, 0],
   ];
 
   pitPatterns.forEach(([x, y, z]) => {

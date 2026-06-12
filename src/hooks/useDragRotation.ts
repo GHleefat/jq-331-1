@@ -1,19 +1,33 @@
-import { useRef, useCallback, useEffect } from "react";
-import { ROTATION_SPEED, ROTATION_EASING } from "../utils/constants";
+import { useRef, useCallback, useEffect } from 'react';
+import * as THREE from 'three';
+import { ROTATION_SPEED, ROTATION_EASING, INITIAL_ROTATION } from '../utils/constants';
 
 interface UseDragRotationOptions {
-  onRotationChange: (x: number, y: number) => void;
+  onRotationChange: (x: number, y: number, quaternion: THREE.Quaternion) => void;
   initialRotation?: { x: number; y: number };
 }
 
 export function useDragRotation({
   onRotationChange,
-  initialRotation = { x: 0, y: 0 },
+  initialRotation = INITIAL_ROTATION,
 }: UseDragRotationOptions) {
-  const targetRotationRef = useRef({ ...initialRotation });
-  const actualRotationRef = useRef({ ...initialRotation });
+  const targetQuatRef = useRef(new THREE.Quaternion());
+  const currentQuatRef = useRef(new THREE.Quaternion());
+  const eulerRef = useRef(new THREE.Euler(0, 0, 0, 'YXZ'));
   const isDraggingRef = useRef(false);
   const lastMouseRef = useRef({ x: 0, y: 0 });
+
+  const initRotation = useCallback(() => {
+    const euler = new THREE.Euler(initialRotation.x, initialRotation.y, 0, 'YXZ');
+    const quat = new THREE.Quaternion().setFromEuler(euler);
+    targetQuatRef.current.copy(quat);
+    currentQuatRef.current.copy(quat);
+    eulerRef.current.setFromQuaternion(quat, 'YXZ');
+  }, [initialRotation]);
+
+  useEffect(() => {
+    initRotation();
+  }, [initRotation]);
 
   const handlePointerDown = useCallback((e: PointerEvent) => {
     e.preventDefault();
@@ -28,10 +42,21 @@ export function useDragRotation({
     const dx = e.clientX - lastMouseRef.current.x;
     const dy = e.clientY - lastMouseRef.current.y;
 
-    targetRotationRef.current = {
-      x: targetRotationRef.current.x - dy * ROTATION_SPEED,
-      y: targetRotationRef.current.y - dx * ROTATION_SPEED,
-    };
+    const rotY = dx * ROTATION_SPEED;
+    const rotX = dy * ROTATION_SPEED;
+
+    const quatY = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 1, 0),
+      -rotY
+    );
+    const quatX = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(1, 0, 0),
+      -rotX
+    );
+
+    const deltaQuat = new THREE.Quaternion().multiplyQuaternions(quatY, quatX);
+    targetQuatRef.current.premultiply(deltaQuat);
+    targetQuatRef.current.normalize();
 
     lastMouseRef.current = { x: e.clientX, y: e.clientY };
   }, []);
@@ -42,46 +67,47 @@ export function useDragRotation({
   }, []);
 
   const update = useCallback(() => {
-    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+    currentQuatRef.current.slerp(targetQuatRef.current, ROTATION_EASING);
+    currentQuatRef.current.normalize();
 
-    actualRotationRef.current = {
-      x: lerp(
-        actualRotationRef.current.x,
-        targetRotationRef.current.x,
-        ROTATION_EASING,
-      ),
-      y: lerp(
-        actualRotationRef.current.y,
-        targetRotationRef.current.y,
-        ROTATION_EASING,
-      ),
+    eulerRef.current.setFromQuaternion(currentQuatRef.current, 'YXZ');
+
+    onRotationChange(
+      eulerRef.current.x,
+      eulerRef.current.y,
+      currentQuatRef.current
+    );
+
+    return {
+      x: eulerRef.current.x,
+      y: eulerRef.current.y,
+      quaternion: currentQuatRef.current,
     };
-
-    onRotationChange(actualRotationRef.current.x, actualRotationRef.current.y);
-
-    return actualRotationRef.current;
   }, [onRotationChange]);
 
   const reset = useCallback(() => {
-    targetRotationRef.current = { ...initialRotation };
-    actualRotationRef.current = { ...initialRotation };
-    onRotationChange(initialRotation.x, initialRotation.y);
-  }, [initialRotation, onRotationChange]);
+    initRotation();
+    onRotationChange(
+      eulerRef.current.x,
+      eulerRef.current.y,
+      currentQuatRef.current
+    );
+  }, [initRotation, onRotationChange]);
 
   useEffect(() => {
-    const canvas = document.querySelector("canvas");
+    const canvas = document.querySelector('canvas');
     if (!canvas) return;
 
-    canvas.addEventListener("pointerdown", handlePointerDown);
-    canvas.addEventListener("pointermove", handlePointerMove);
-    canvas.addEventListener("pointerup", handlePointerUp);
-    canvas.addEventListener("pointerleave", handlePointerUp);
+    canvas.addEventListener('pointerdown', handlePointerDown);
+    canvas.addEventListener('pointermove', handlePointerMove);
+    canvas.addEventListener('pointerup', handlePointerUp);
+    canvas.addEventListener('pointerleave', handlePointerUp);
 
     return () => {
-      canvas.removeEventListener("pointerdown", handlePointerDown);
-      canvas.removeEventListener("pointermove", handlePointerMove);
-      canvas.removeEventListener("pointerup", handlePointerUp);
-      canvas.removeEventListener("pointerleave", handlePointerUp);
+      canvas.removeEventListener('pointerdown', handlePointerDown);
+      canvas.removeEventListener('pointermove', handlePointerMove);
+      canvas.removeEventListener('pointerup', handlePointerUp);
+      canvas.removeEventListener('pointerleave', handlePointerUp);
     };
   }, [handlePointerDown, handlePointerMove, handlePointerUp]);
 
@@ -89,7 +115,7 @@ export function useDragRotation({
     update,
     reset,
     isDragging: isDraggingRef,
-    targetRotation: targetRotationRef,
-    actualRotation: actualRotationRef,
+    targetQuaternion: targetQuatRef,
+    currentQuaternion: currentQuatRef,
   };
 }
